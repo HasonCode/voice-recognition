@@ -28,7 +28,8 @@ voice_recognition/
 ├── documentation.md         # This file
 ├── .gitignore
 ├── tests/
-│   └── test_ctc_prefix_beam_search.py
+│   ├── test_ctc_prefix_beam_search.py
+│   └── test_caption_stabilizer.py
 └── src/
     └── voice_recognition/
         ├── __init__.py
@@ -38,10 +39,14 @@ voice_recognition/
         │   ├── config.py    # AudioConfig (encoding standards)
         │   ├── collector.py # AudioCollector (mono 16 kHz recording)
         │   └── features.py  # MelFeatureExtractor, RingBuffer, online CMVN
-        └── decoder/
+        ├── decoder/
+        │   ├── __init__.py
+        │   ├── README.md    # Jetson pitfalls, integration
+        │   └── ctc_prefix_beam_search.py  # CTC prefix beam search (beam=8, no LM)
+        └── stabilizer/
             ├── __init__.py
-            ├── README.md    # Jetson pitfalls, integration
-            └── ctc_prefix_beam_search.py  # CTC prefix beam search (beam=8, no LM)
+            ├── README.md    # Integration, Jetson notes
+            └── caption_stabilizer.py  # N-stable commit logic for streaming captions
 ```
 
 ---
@@ -104,6 +109,15 @@ voice_recognition/
 - **Added** `ctc_greedy_decode()` for validation/comparison
 - **Tests:** `tests/test_ctc_prefix_beam_search.py` — unit tests and toy example
 - **Integration:** `decoder/README.md` — pipeline placement, Jetson pitfalls, real-time tips
+
+### 8. Caption Stabilizer (`src/voice_recognition/stabilizer/`)
+
+- **Added** `CaptionStabilizer` — common-prefix + N-stable-updates commit logic
+  - `update(partial)` → display string (committed + tentative)
+  - `commit()` — force-commit current tentative; `reset()` — new segment
+  - No new dependencies (stdlib only)
+- **Tests:** `tests/test_caption_stabilizer.py` — unit tests and toy example
+- **Integration:** `stabilizer/README.md` — pipeline placement, Jetson performance notes
 
 ---
 

@@ -1,1 +1,1 @@
-"""Voice recognition model - audio collection, feature extraction, CTC decoder."""
+"""Voice recognition model - audio, features, CTC decoder, caption stabilizer."""
