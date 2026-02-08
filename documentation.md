@@ -27,15 +27,21 @@ voice_recognition/
 ├── pyproject.toml           # Dependencies, scripts, package config
 ├── documentation.md         # This file
 ├── .gitignore
+├── tests/
+│   └── test_ctc_prefix_beam_search.py
 └── src/
     └── voice_recognition/
         ├── __init__.py
         ├── cli.py           # voice-record CLI
-        └── audio/
+        ├── audio/
+        │   ├── __init__.py
+        │   ├── config.py    # AudioConfig (encoding standards)
+        │   ├── collector.py # AudioCollector (mono 16 kHz recording)
+        │   └── features.py  # MelFeatureExtractor, RingBuffer, online CMVN
+        └── decoder/
             ├── __init__.py
-            ├── config.py    # AudioConfig (encoding standards)
-            ├── collector.py # AudioCollector (mono 16 kHz recording)
-            └── features.py  # MelFeatureExtractor, RingBuffer, online CMVN
+            ├── README.md    # Jetson pitfalls, integration
+            └── ctc_prefix_beam_search.py  # CTC prefix beam search (beam=8, no LM)
 ```
 
 ---
@@ -88,6 +94,16 @@ voice_recognition/
 ### 6. `.gitignore`
 
 - **Added:** `*.wav`, `*.mp3`, `__pycache__/`, `*.egg-info/`, `.venv/`, `venv/` to ignore audio artifacts and Python build artifacts
+
+### 7. CTC Prefix Beam Search Decoder (`src/voice_recognition/decoder/`)
+
+- **Added** `CTCPrefixBeamSearch` — CTC prefix beam search (beam=8, no LM)
+  - Interface: `decode(log_probs) -> (text, score)`
+  - Input: (T, V) log-probs from CTC model; accepts numpy or torch
+  - Minimal deps: numpy only
+- **Added** `ctc_greedy_decode()` for validation/comparison
+- **Tests:** `tests/test_ctc_prefix_beam_search.py` — unit tests and toy example
+- **Integration:** `decoder/README.md` — pipeline placement, Jetson pitfalls, real-time tips
 
 ---
 
