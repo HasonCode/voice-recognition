@@ -1,0 +1,8 @@
+.python-version
+poetry.lock
+*.wav
+*.mp3
+__pycache__/
+*.egg-info/
+.venv/
+venv/

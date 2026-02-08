@@ -1,0 +1,31 @@
+[project]
+name = "voice-recognition"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "hasoncode",email = "harrison7adams@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12,<3.15"
+dependencies = [
+    "numpy>=2.0,<3.0",
+    "scipy>=1.11,<2.0",
+    "sounddevice>=0.4.6",
+]
+
+[project.optional-dependencies]
+ml = [
+    "torch>=2.10.0,<3.0.0",
+    "torchvision>=0.25.0,<0.26.0",
+]
+
+[project.scripts]
+voice-record = "voice_recognition.cli:main"
+
+[[tool.poetry.packages]]
+include = "voice_recognition"
+from = "src"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
