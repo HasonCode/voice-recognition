@@ -1,1 +1,1 @@
-"""Voice recognition model - audio, features, CTC decoder, caption stabilizer."""
+"""Voice recognition model - audio, features, CTC decoder, stabilizer, streaming pipeline."""

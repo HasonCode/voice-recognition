@@ -29,7 +29,8 @@ voice_recognition/
 ├── .gitignore
 ├── tests/
 │   ├── test_ctc_prefix_beam_search.py
-│   └── test_caption_stabilizer.py
+│   ├── test_caption_stabilizer.py
+│   └── test_streaming_loop.py
 └── src/
     └── voice_recognition/
         ├── __init__.py
@@ -43,10 +44,14 @@ voice_recognition/
         │   ├── __init__.py
         │   ├── README.md    # Jetson pitfalls, integration
         │   └── ctc_prefix_beam_search.py  # CTC prefix beam search (beam=8, no LM)
-        └── stabilizer/
+        ├── stabilizer/
+        │   ├── __init__.py
+        │   ├── README.md    # Integration, Jetson notes
+        │   └── caption_stabilizer.py  # N-stable commit logic for streaming captions
+        └── pipeline/
             ├── __init__.py
-            ├── README.md    # Integration, Jetson notes
-            └── caption_stabilizer.py  # N-stable commit logic for streaming captions
+            ├── README.md    # Jetson pitfalls, integration
+            └── streaming_loop.py     # End-to-end streaming loop glue
 ```
 
 ---
@@ -118,6 +123,16 @@ voice_recognition/
   - No new dependencies (stdlib only)
 - **Tests:** `tests/test_caption_stabilizer.py` — unit tests and toy example
 - **Integration:** `stabilizer/README.md` — pipeline placement, Jetson performance notes
+
+### 9. Streaming Pipeline (`src/voice_recognition/pipeline/`)
+
+- **Added** `StreamingConfig` — context_sec=1.6, update_interval_sec=0.25
+- **Added** `StreamingCaptionPipeline` — glue: audio → mel → model → decoder → stabilizer → display
+  - `run(audio_iterator=None)` — live mic or injected iterator; `stop()` to exit
+  - `run_for_n_updates(n, audio_iterator)` — for tests; returns list of display strings
+  - Model: callable `(mel: (T, 80)) -> log_probs: (T, V)`
+- **Tests:** `tests/test_streaming_loop.py` — unit tests and toy example
+- **Integration:** `pipeline/README.md` — Jetson pitfalls, real-time notes
 
 ---
 
