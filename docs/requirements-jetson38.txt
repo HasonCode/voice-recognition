@@ -1,0 +1,13 @@
+# Python 3.8–compatible dependencies for JetPack 5 (Jetson Orin Nano).
+# Use with: python3.8 -m venv .venv && source .venv/bin/activate && pip install -r docs/requirements-jetson38.txt
+# Then install NeMo / nemo_toolkit per NVIDIA Jetson docs (often a separate wheel or pip install nemo_toolkit[asr]).
+
+numpy>=1.20,<2.0
+scipy>=1.9,<2.0
+sounddevice>=0.4.6
+pyttsx3>=2.90
+# Optional: edge-tts for AI voice (needs internet when generating)
+# edge-tts>=6.0
+# PyTorch and NeMo: install from NVIDIA / Jetson-specific instructions or:
+# pip install torch nemo_toolkit[asr]
+# (versions depend on JetPack/CUDA; see https://docs.nvidia.com/nemo-framework/user-guide/latest/jetson.html)

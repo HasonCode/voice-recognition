@@ -10,7 +10,7 @@ import re
 import threading
 import time
 from difflib import SequenceMatcher
-from typing import Callable, Optional
+from typing import Callable, List, Optional
 
 # Default trigger phrase (normalized: lowercase, single spaces)
 TRIGGER_PHRASE = "hey jetson"
@@ -101,7 +101,7 @@ class HeyJetsonListener:
         self._last_transcript = ""
         self._last_update_time: float = 0.0
         self._capturing = False
-        self._response_parts: list[str] = []
+        self._response_parts: List[str] = []
         self._lock = threading.Lock()
         self._timer: Optional[threading.Timer] = None
         self._stop = False

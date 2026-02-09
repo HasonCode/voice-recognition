@@ -306,6 +306,21 @@ Use `llama_transcript_edge_example.py` to feed transcript into a local GGUF mode
 
 ---
 
+## Deploy on Jetson Orin Nano (JetPack 5)
+
+JetPack 5 uses **Python 3.8**; the project supports 3.8 and the deploy guide assumes it. To run the **Hey Jetson** listener as a readily listening bot:
+
+1. Copy the project onto the device and set up a venv with Python 3.8 (`python3.8 -m venv .venv`).
+2. Install dependencies (see full guide; NeMo/sounddevice/pyttsx3 or edge-tts; optional `docs/requirements-jetson38.txt` for 3.8).
+3. Test: `python hey_jetson_listener.py --device 0`.
+4. Run at boot: use the **systemd service** and run script in `deploy/`:
+   - `deploy/run_hey_jetson.sh` — activates venv and runs the listener.
+   - `deploy/hey-jetson.service` — systemd unit; copy to `/etc/systemd/system/`, edit user/path, then `enable` and `start`.
+
+Full steps, paths, and optional TTS/Llama notes: **[docs/DEPLOY_JETSON_ORIN_NANO.md](docs/DEPLOY_JETSON_ORIN_NANO.md)**.
+
+---
+
 ## Next Steps
 
 - Dataset collection pipeline (batch recording, labeling)

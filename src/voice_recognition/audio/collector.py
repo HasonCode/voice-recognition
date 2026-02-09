@@ -2,7 +2,7 @@
 
 import queue
 import threading
-from typing import Iterator, Optional
+from typing import Iterator, List, Optional
 
 import numpy as np
 
@@ -19,7 +19,7 @@ class AudioCollector:
 
     def __init__(self, config: Optional[AudioConfig] = None):
         self.config = config or AudioConfig()
-        self._buffer: list[np.ndarray] = []
+        self._buffer: List[np.ndarray] = []
         self._lock = threading.Lock()
 
     def record_chunk(

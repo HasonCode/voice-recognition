@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from typing import List
 
 import numpy as np
 
@@ -37,7 +38,7 @@ def _fake_audio_stream(
     chunk_samples: int,
     num_chunks: int,
     seed: int = 42,
-) -> list[np.ndarray]:
+) -> List[np.ndarray]:
     """Yield fake audio chunks (for testing)."""
     rng = np.random.default_rng(seed)
     return [
@@ -101,7 +102,7 @@ class TestStreamingCaptionPipeline(unittest.TestCase):
 
     def test_run_for_n_updates_integration(self) -> None:
         """Full pipeline: audio -> mel -> model -> decoder -> stabilizer."""
-        collected: list[str] = []
+        collected: List[str] = []
 
         pipeline = StreamingCaptionPipeline(
             config=self.config,

@@ -10,7 +10,7 @@ via .cpu().numpy() or equivalent.
 from __future__ import annotations
 
 import math
-from typing import List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -83,13 +83,13 @@ class CTCPrefixBeamSearch:
 
         # Beam: dict prefix -> (log_pb, log_pnb)
         # log_pb = prob prefix ends in blank, log_pnb = prob prefix ends in non-blank
-        beam: dict[Tuple, Tuple[float, float]] = {
+        beam: Dict[Tuple, Tuple[float, float]] = {
             (): (0.0, self._minus_inf)
         }
 
         for t in range(T):
             log_p_blank = lp[t, self.blank_index]
-            next_beam: dict[Tuple, Tuple[float, float]] = {}
+            next_beam: Dict[Tuple, Tuple[float, float]] = {}
 
             for prefix, (log_pb, log_pnb) in beam.items():
                 log_ptotal = _logsumexp(log_pb, log_pnb)

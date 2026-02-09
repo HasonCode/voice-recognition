@@ -7,7 +7,7 @@ preprocessing. Use with pipeline model_input="audio".
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -18,7 +18,7 @@ def _get_nemo():
 
 
 def load_nemo_model(
-    path: str | Path,
+    path: Union[str, Path],
     device: Optional[str] = None,
 ) -> Tuple["callable", List[str], int]:
     """Load a NeMo CTC ASR model and return a forward callable plus vocab.

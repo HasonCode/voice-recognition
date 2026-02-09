@@ -9,7 +9,7 @@ Streaming: 1.6 s rolling context, update every 250 ms.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Iterator, Optional
+from typing import Callable, Iterator, List, Optional
 
 import numpy as np
 
@@ -170,12 +170,12 @@ class StreamingCaptionPipeline:
         self,
         n: int,
         audio_iterator: Iterator[np.ndarray],
-    ) -> list[str]:
+    ) -> List[str]:
         """Run for exactly n context updates; used for tests. Returns list of display strings."""
         self._stopped = False
         ring = self._ensure_audio_ring()
         chunk_samples = self.streaming_config.chunk_samples
-        displays: list[str] = []
+        displays: List[str] = []
         for chunk in audio_iterator:
             if len(displays) >= n:
                 break

@@ -1,0 +1,29 @@
+# systemd unit for Hey Jetson listener (readily listening on boot).
+# Install: sudo cp deploy/hey-jetson.service /etc/systemd/system/
+#          sudo systemctl daemon-reload && sudo systemctl enable hey-jetson && sudo systemctl start hey-jetson
+#
+# 1. Replace YOUR_JETSON_USER with your login (e.g. nvidia).
+# 2. Replace /home/YOUR_JETSON_USER/voice_recognition with the real project path.
+# 3. Optional: add --no-voice to disable TTS, or --device 1 for a different mic.
+
+[Unit]
+Description=Hey Jetson voice listener (wake word + response capture + TTS)
+After=network.target sound.target
+Wants=sound.target
+
+[Service]
+Type=simple
+User=YOUR_JETSON_USER
+Group=YOUR_JETSON_USER
+WorkingDirectory=/home/YOUR_JETSON_USER/voice_recognition
+Environment=VOICE_RECOGNITION_ROOT=/home/YOUR_JETSON_USER/voice_recognition
+ExecStart=/home/YOUR_JETSON_USER/voice_recognition/deploy/run_hey_jetson.sh
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+# Optional: if your mic needs more time after boot
+# ExecStartPre=/bin/sleep 10
+
+[Install]
+WantedBy=multi-user.target

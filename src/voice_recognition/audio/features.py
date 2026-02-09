@@ -1,6 +1,6 @@
 """Feature extraction: 80-bin log-Mel, STFT, ring buffer, online CMVN."""
 
-from typing import Optional
+from typing import Optional, Tuple
 
 import numpy as np
 
@@ -167,7 +167,7 @@ class MelFeatureExtractor:
         audio_ring: Optional[RingBuffer] = None,
         frame_ring: Optional[RingBuffer] = None,
         apply_cmvn: bool = True,
-    ) -> tuple[np.ndarray, RingBuffer, RingBuffer]:
+    ) -> Tuple[np.ndarray, RingBuffer, RingBuffer]:
         """Extract features from a streaming audio chunk with ring buffers.
 
         Uses an audio ring buffer for STFT context and a frame ring buffer
