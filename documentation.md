@@ -48,6 +48,7 @@ voice_recognition/
         │   ├── __init__.py
         │   ├── README.md    # Integration, Jetson notes
         │   └── caption_stabilizer.py  # N-stable commit logic for streaming captions
+        ├── postprocess.py            # refine_bpe_caption (BPE/subword → readable)
         ├── pipeline/
         │   ├── __init__.py
         │   ├── README.md    # Jetson pitfalls, integration
@@ -139,7 +140,14 @@ voice_recognition/
 - **Tests:** `tests/test_streaming_loop.py` — unit tests and toy example
 - **Integration:** `pipeline/README.md` — Jetson pitfalls, real-time notes
 
-### 10. NeMo Model Support (`src/voice_recognition/models/`)
+### 10. BPE Post-Processor (`src/voice_recognition/postprocess.py`)
+
+- **Added** `refine_bpe_caption(raw)` — converts raw BPE/subword output to readable text
+  - Removes `<?>` placeholders, `##` WordPiece continuation, `▁` SentencePiece boundary
+  - Collapses multiple spaces
+- **Pipeline integration:** Applied between decoder and stabilizer; configurable via `post_process` parameter (default: `refine_bpe_caption`)
+
+### 11. NeMo Model Support (`src/voice_recognition/models/`)
 
 - **Added** `load_nemo_model(path)` — loads `.nemo` checkpoint, returns `(model_forward, vocab, blank_index)`
   - NeMo models expect raw audio; use `model_input="audio"` in the pipeline

@@ -14,6 +14,7 @@ from typing import Callable, Iterator, Optional
 import numpy as np
 
 from voice_recognition.audio import AudioCollector, MelFeatureExtractor
+from voice_recognition.postprocess import refine_bpe_caption
 from voice_recognition.audio.config import AudioConfig
 from voice_recognition.audio.features import RingBuffer
 
@@ -38,6 +39,7 @@ class StreamingConfig:
 # Model forward: accepts mel (T, 80) or audio (samples,) depending on model_input
 ModelForward = Callable[[np.ndarray], np.ndarray]
 DisplayCallback = Callable[[str], None]
+PostProcessCallback = Callable[[str], str]
 
 
 class StreamingCaptionPipeline:
@@ -66,6 +68,7 @@ class StreamingCaptionPipeline:
         model_forward: Optional[ModelForward] = None,
         model_input: str = "mel",
         decoder: Optional[object] = None,
+        post_process: Optional[PostProcessCallback] = None,
         stabilizer: Optional[object] = None,
         on_display: Optional[DisplayCallback] = None,
         audio_collector: Optional[AudioCollector] = None,
@@ -76,6 +79,7 @@ class StreamingCaptionPipeline:
         self.model_forward = model_forward
         self.model_input = model_input if model_input in ("mel", "audio") else "mel"
         self.decoder = decoder
+        self.post_process = post_process if post_process is not None else refine_bpe_caption
         self.stabilizer = stabilizer
         self.on_display = on_display or (lambda s: None)
         self.audio_collector = audio_collector or AudioCollector(self.audio_config)
@@ -116,6 +120,7 @@ class StreamingCaptionPipeline:
         if log_probs.ndim == 3:
             log_probs = log_probs.squeeze(0)
         partial, _ = self.decoder.decode(log_probs)
+        partial = self.post_process(partial)
         display_text = self.stabilizer.update(partial)
         return display_text
 

@@ -112,7 +112,7 @@ def main(use_nemo=True, wav_path=None):
 if __name__ == "__main__":
     args = sys.argv[1:]
     use_nemo = "--dummy" not in args
-    wav_path = None
+    wav_path = "test.wav"
     if "--file" in args:
         idx = args.index("--file")
         if idx + 1 < len(args):

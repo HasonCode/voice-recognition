@@ -55,6 +55,23 @@ def load_nemo_model(
     vocab = _extract_vocab(model)
     blank_index = 0
 
+    # Ensure vocab length matches model output: run minimal forward to get V
+    def _get_output_vocab_size():
+        with torch.no_grad():
+            dummy = torch.zeros(1, 1600, device=model.device)
+            log_probs, _, _ = model.forward(
+                input_signal=dummy,
+                input_signal_length=torch.tensor([1600], dtype=torch.int64, device=model.device),
+            )
+            return log_probs.shape[-1]
+
+    try:
+        V = _get_output_vocab_size()
+        while len(vocab) < V:
+            vocab.append("")
+    except Exception:
+        pass
+
     def forward(audio: np.ndarray) -> np.ndarray:
         with torch.no_grad():
             audio_t = torch.from_numpy(audio.astype(np.float32)).unsqueeze(0)
@@ -71,18 +88,50 @@ def load_nemo_model(
 
 
 def _extract_vocab(model) -> List[str]:
-    """Extract vocabulary list from NeMo ASR model."""
+    """Extract vocabulary list from NeMo ASR model.
+
+    Returns vocab where vocab[i] = symbol for model output index i.
+    Length must match model output dimension (log_probs.shape[1]).
+    """
+    vocab_size = None
+    vocab: List[str] = []
+
+    # 1. Try decoder.vocabulary (character CTC)
     if hasattr(model, "decoder") and hasattr(model.decoder, "vocabulary"):
         v = model.decoder.vocabulary
-        if isinstance(v, list):
-            return list(v)
-        if hasattr(v, "copy"):
-            return list(v.copy())
-    if hasattr(model, "tokenizer") and model.tokenizer is not None:
-        # BPE/subword tokenizer
-        if hasattr(model.tokenizer, "vocab"):
-            return list(model.tokenizer.vocab.keys())
-        if hasattr(model.tokenizer, "ids_to_tokens"):
-            n = getattr(model.tokenizer, "vocab_size", 1024)
-            return [model.tokenizer.ids_to_tokens(i) for i in range(n)]
-    raise ValueError("Could not extract vocabulary from NeMo model")
+        if isinstance(v, (list, tuple)):
+            vocab = list(v)
+            vocab_size = len(vocab)
+        elif hasattr(v, "__len__") and hasattr(v, "__getitem__"):
+            vocab = [v[i] for i in range(len(v))]
+            vocab_size = len(vocab)
+
+    # 2. Try tokenizer (BPE/subword) - build by id order
+    if (not vocab or vocab_size is None) and hasattr(model, "tokenizer") and model.tokenizer is not None:
+        tok = model.tokenizer
+        n = getattr(tok, "vocab_size", None) or getattr(tok, "get_vocab_size", lambda: 0)()
+        if n == 0 and hasattr(tok, "get_vocab"):
+            n = len(tok.get_vocab())
+        if n > 0 and hasattr(tok, "ids_to_tokens"):
+            vocab = [tok.ids_to_tokens(i) for i in range(n)]
+            vocab_size = n
+
+    # 3. Fallback: infer vocab_size from decoder output dim and pad if needed
+    if not vocab and hasattr(model, "decoder"):
+        # Decoder linear out features = num classes
+        for attr in ("vocab_size", "num_classes", "_vocab_size"):
+            if hasattr(model.decoder, attr):
+                n = getattr(model.decoder, attr)
+                if callable(n):
+                    n = n()
+                if isinstance(n, int) and n > 0:
+                    vocab_size = n
+                    break
+        if vocab_size and hasattr(model, "tokenizer") and model.tokenizer is not None:
+            tok = model.tokenizer
+            if hasattr(tok, "ids_to_tokens"):
+                vocab = [tok.ids_to_tokens(i) for i in range(vocab_size)]
+
+    if not vocab:
+        raise ValueError("Could not extract vocabulary from NeMo model")
+    return vocab

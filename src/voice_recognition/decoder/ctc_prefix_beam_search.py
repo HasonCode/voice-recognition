@@ -67,6 +67,16 @@ class CTCPrefixBeamSearch:
         """
         lp = self._to_numpy(log_probs)
         T, V = lp.shape
+        if len(self.vocab) < V:
+            import warnings
+
+            warnings.warn(
+                f"Vocab size ({len(self.vocab)}) < model output size ({V}). "
+                "Out-of-range indices will render as <?>. "
+                "Ensure decoder vocab matches model (length >= V).",
+                UserWarning,
+                stacklevel=2,
+            )
         if seq_len is not None:
             T = min(T, int(seq_len))
         lp = lp[:T]
@@ -136,7 +146,14 @@ class CTCPrefixBeamSearch:
 
     def _indices_to_text(self, indices: Tuple[int, ...]) -> str:
         """Convert index tuple to string."""
-        return "".join(self.vocab[i] for i in indices)
+        result = []
+        for i in indices:
+            if 0 <= i < len(self.vocab):
+                result.append(self.vocab[i])
+            else:
+                # Index out of range: vocab/model size mismatch
+                result.append("<?>")
+        return "".join(result)
 
     def _to_numpy(self, x: Union[np.ndarray, "object"]) -> np.ndarray:
         """Convert torch/numpy to numpy."""
