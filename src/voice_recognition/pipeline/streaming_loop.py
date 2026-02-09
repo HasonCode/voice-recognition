@@ -187,17 +187,23 @@ class StreamingCaptionPipeline:
                 self.on_display(display_text)
         return displays
 
-    def run_from_file(self, wav_path: str, device: Optional[int] = None) -> None:
+    def run_from_file(
+        self,
+        wav_path: str,
+        device: Optional[int] = None,
+        hop_sec: Optional[float] = None,
+    ) -> None:
         """Process an entire WAV file: slide context window over full audio, no discard.
 
         Unlike run(audio_iterator=...), this does NOT use a ring buffer that
         overwrites. It loads the whole file and slides a context_sec window
-        by update_interval_sec steps from start to end, so every part of
-        the file is processed.
+        by hop steps from start to end, so every part of the file is processed.
 
         Args:
             wav_path: Path to WAV file (16 kHz mono).
             device: Unused; kept for API compatibility.
+            hop_sec: Step size in seconds between windows (default: update_interval_sec).
+                     Larger values reduce overlap and conflicting hypotheses.
         """
         import scipy.io.wavfile as wavfile
 
@@ -214,7 +220,9 @@ class StreamingCaptionPipeline:
             audio = audio.mean(axis=1)
 
         context_samples = self.streaming_config.context_samples
-        hop_samples = self.streaming_config.chunk_samples
+        hop_interval = hop_sec if hop_sec is not None else self.streaming_config.update_interval_sec
+        hop_samples = int(hop_interval * self.streaming_config.sample_rate)
+        hop_samples = max(hop_samples, 1)
         n_samples = len(audio)
         self._stopped = False
 

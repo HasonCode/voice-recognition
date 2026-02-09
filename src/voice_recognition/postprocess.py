@@ -21,6 +21,7 @@ def refine_bpe_caption(raw: str) -> str:
     - ▁ SentencePiece word-boundary marker
     - Heuristic word spacing (insert space before common words)
     - Multiple spaces
+    - Consecutive duplicate words (CTC / overlapping windows)
     """
     if not raw:
         return ""
@@ -29,7 +30,54 @@ def refine_bpe_caption(raw: str) -> str:
     text = text.replace("▁", " ")
     text = _add_word_spaces(text)
     text = re.sub(r"\s+", " ", text)
+    text = _deduplicate_consecutive_words(text)
     return text.strip()
+
+
+def _deduplicate_consecutive_words(text: str) -> str:
+    """Remove consecutive duplicate words (e.g. 'hello hello world' -> 'hello world')."""
+    words = text.split()
+    if not words:
+        return ""
+    result = [words[0]]
+    for w in words[1:]:
+        if w != result[-1]:
+            result.append(w)
+    return " ".join(result)
+
+
+def merge_display_into_transcript(accumulated: str, new_display: str) -> str:
+    """Merge new display into accumulated transcript using word-boundary overlap.
+
+    For overlapping windows, finds the longest word overlap between the end of
+    accumulated and the start of new_display, then appends the new part.
+    E.g. accumulated='one two three', new_display='two three four five'
+    -> overlap 'two three', append 'four five' -> 'one two three four five'.
+
+    When no overlap, keeps the longer of the two (captures more content).
+    """
+    if not new_display:
+        return accumulated
+    if not accumulated:
+        return new_display.strip()
+
+    acc_words = accumulated.split()
+    new_words = new_display.split()
+
+    # Find longest overlap: words at end of accumulated matching words at start of new
+    best_overlap = 0
+    for overlap in range(1, min(len(acc_words), len(new_words)) + 1):
+        if acc_words[-overlap:] == new_words[:overlap]:
+            best_overlap = overlap
+
+    if best_overlap > 0:
+        suffix = new_words[best_overlap:]
+        if suffix:
+            return accumulated + " " + " ".join(suffix)
+        return accumulated
+
+    # No overlap: keep the longer segment (avoids losing content from window jumps)
+    return accumulated if len(accumulated) >= len(new_display) else new_display.strip()
 
 
 def _add_word_spaces(text: str) -> str:

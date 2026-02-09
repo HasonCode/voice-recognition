@@ -4,6 +4,7 @@ Usage:
   python pipeline_test.py              # NeMo model, fake audio
   python pipeline_test.py --dummy      # Dummy model, fake audio
   python pipeline_test.py --file test.wav   # NeMo model, audio from file
+  python pipeline_test.py --file test.wav --output transcript.txt   # Save transcription
 """
 
 import sys
@@ -17,6 +18,7 @@ from voice_recognition.audio import MelFeatureExtractor
 from voice_recognition.audio.config import AudioConfig
 from voice_recognition.decoder import CTCPrefixBeamSearch
 from voice_recognition.pipeline import StreamingCaptionPipeline, StreamingConfig
+from voice_recognition.postprocess import merge_display_into_transcript
 from voice_recognition.stabilizer import CaptionStabilizer
 
 # Path to NeMo model
@@ -57,7 +59,7 @@ def make_dummy_model(vocab_size=len(VOCAB_DUMMY), bias_blank=True):
     return forward
 
 
-def main(use_nemo=True, wav_path=None):
+def main(use_nemo=True, wav_path=None, output_path=None):
     config = StreamingConfig(context_sec=1.6, update_interval_sec=0.25)
     chunk_samples = config.chunk_samples
 
@@ -77,6 +79,12 @@ def main(use_nemo=True, wav_path=None):
         model_input = "mel"
         model_name = "dummy"
 
+    accumulated_transcript = [""]  # mutable; merge all displays for full caption
+
+    def on_display(s):
+        accumulated_transcript[0] = merge_display_into_transcript(accumulated_transcript[0], s)
+        print("display:", repr(s))
+
     pipeline = StreamingCaptionPipeline(
         config=config,
         audio_config=AudioConfig(),
@@ -84,7 +92,7 @@ def main(use_nemo=True, wav_path=None):
         model_input=model_input,
         decoder=decoder,
         stabilizer=CaptionStabilizer(stable_n=2),
-        on_display=lambda s: print("display:", repr(s)),
+        on_display=on_display,
     )
 
     if wav_path:
@@ -102,7 +110,12 @@ def main(use_nemo=True, wav_path=None):
 
     print(f"Running pipeline with {model_name} model ({audio_source} audio)...\n")
     if wav_path:
-        pipeline.run_from_file(str(wav_path))
+        # Larger hop (0.5s) reduces overlap vs default 0.25s, fewer conflicting hypotheses
+        pipeline.run_from_file(str(wav_path), hop_sec=0.5)
+        if output_path:
+            output_path = Path(output_path)
+            output_path.write_text(accumulated_transcript[0], encoding="utf-8")
+            print(f"\nTranscription saved to {output_path}")
     else:
         pipeline.run_for_n_updates(5, iter(chunks))
     print("\nDone.")
@@ -112,8 +125,13 @@ if __name__ == "__main__":
     args = sys.argv[1:]
     use_nemo = "--dummy" not in args
     wav_path = "test.wav"
+    output_path = "transcript.txt"
     if "--file" in args:
         idx = args.index("--file")
         if idx + 1 < len(args):
             wav_path = args[idx + 1]
-    main(use_nemo=use_nemo, wav_path=wav_path)
+    if "--output" in args:
+        idx = args.index("--output")
+        if idx + 1 < len(args):
+            output_path = args[idx + 1]
+    main(use_nemo=use_nemo, wav_path=wav_path, output_path=output_path)
