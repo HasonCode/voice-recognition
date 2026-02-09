@@ -35,7 +35,7 @@ class StreamingConfig:
         return int(self.update_interval_sec * self.sample_rate)
 
 
-# Model forward: (mel: np.ndarray (T, 80)) -> log_probs: np.ndarray (T, V)
+# Model forward: accepts mel (T, 80) or audio (samples,) depending on model_input
 ModelForward = Callable[[np.ndarray], np.ndarray]
 DisplayCallback = Callable[[str], None]
 
@@ -64,6 +64,7 @@ class StreamingCaptionPipeline:
         audio_config: Optional[AudioConfig] = None,
         mel_extractor: Optional[MelFeatureExtractor] = None,
         model_forward: Optional[ModelForward] = None,
+        model_input: str = "mel",
         decoder: Optional[object] = None,
         stabilizer: Optional[object] = None,
         on_display: Optional[DisplayCallback] = None,
@@ -73,6 +74,7 @@ class StreamingCaptionPipeline:
         self.audio_config = audio_config or AudioConfig()
         self.mel_extractor = mel_extractor or MelFeatureExtractor(self.audio_config)
         self.model_forward = model_forward
+        self.model_input = model_input if model_input in ("mel", "audio") else "mel"
         self.decoder = decoder
         self.stabilizer = stabilizer
         self.on_display = on_display or (lambda s: None)
@@ -94,17 +96,20 @@ class StreamingCaptionPipeline:
         return self._audio_ring
 
     def _process_context(self, audio: np.ndarray) -> Optional[str]:
-        """Run mel -> model -> decoder -> stabilizer on one context window. Returns display text."""
+        """Run mel/audio -> model -> decoder -> stabilizer on one context window. Returns display text."""
         if len(audio) < self.streaming_config.context_samples:
             return None
-        # Use exactly context_samples (last N samples) for deterministic length
         window = audio[-self.streaming_config.context_samples :].astype(np.float32)
-        mel = self.mel_extractor.extract(window)
-        if mel.shape[0] == 0:
-            return None
         if self.model_forward is None or self.decoder is None or self.stabilizer is None:
             return None
-        log_probs = self.model_forward(mel)
+        if self.model_input == "audio":
+            model_input_data = window
+        else:
+            mel = self.mel_extractor.extract(window)
+            if mel.shape[0] == 0:
+                return None
+            model_input_data = mel
+        log_probs = self.model_forward(model_input_data)
         if log_probs is None or log_probs.size == 0:
             return None
         # Handle (1, T, V) from some frameworks

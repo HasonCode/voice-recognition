@@ -48,10 +48,14 @@ voice_recognition/
         │   ├── __init__.py
         │   ├── README.md    # Integration, Jetson notes
         │   └── caption_stabilizer.py  # N-stable commit logic for streaming captions
-        └── pipeline/
+        ├── pipeline/
+        │   ├── __init__.py
+        │   ├── README.md    # Jetson pitfalls, integration
+        │   └── streaming_loop.py     # End-to-end streaming loop glue
+        └── models/
             ├── __init__.py
-            ├── README.md    # Jetson pitfalls, integration
-            └── streaming_loop.py     # End-to-end streaming loop glue
+            ├── ctc_small.nemo       # NeMo CTC ASR checkpoint
+            └── nemo_model.py        # NeMo model loader
 ```
 
 ---
@@ -127,12 +131,23 @@ voice_recognition/
 ### 9. Streaming Pipeline (`src/voice_recognition/pipeline/`)
 
 - **Added** `StreamingConfig` — context_sec=1.6, update_interval_sec=0.25
-- **Added** `StreamingCaptionPipeline` — glue: audio → mel → model → decoder → stabilizer → display
+- **Added** `StreamingCaptionPipeline` — glue: audio → mel/audio → model → decoder → stabilizer → display
   - `run(audio_iterator=None)` — live mic or injected iterator; `stop()` to exit
   - `run_for_n_updates(n, audio_iterator)` — for tests; returns list of display strings
-  - Model: callable `(mel: (T, 80)) -> log_probs: (T, V)`
+  - `model_input="mel"` (default) or `"audio"` — pass mel features or raw audio to model_forward
+  - Model: callable `(mel or audio) -> log_probs: (T, V)`
 - **Tests:** `tests/test_streaming_loop.py` — unit tests and toy example
 - **Integration:** `pipeline/README.md` — Jetson pitfalls, real-time notes
+
+### 10. NeMo Model Support (`src/voice_recognition/models/`)
+
+- **Added** `load_nemo_model(path)` — loads `.nemo` checkpoint, returns `(model_forward, vocab, blank_index)`
+  - NeMo models expect raw audio; use `model_input="audio"` in the pipeline
+  - Model location: `src/voice_recognition/models/ctc_small.nemo`
+- **pipeline_test.py** — run pipeline with NeMo or dummy:
+  - `python pipeline_test.py` — NeMo model, fake audio
+  - `python pipeline_test.py --dummy` — dummy model
+  - `python pipeline_test.py --file test.wav` — NeMo model, audio from WAV (16 kHz mono)
 
 ---
 

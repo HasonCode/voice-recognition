@@ -46,7 +46,7 @@ pipeline.run()
 # pipeline.run(audio_iterator=iter(list_of_chunks))
 ```
 
-**Model contract:** `model_forward(mel: np.ndarray (T, 80)) -> log_probs: np.ndarray (T, V)`.
+**Model contract:** `model_forward(input) -> log_probs`, where `input` is mel `(T, 80)` when `model_input="mel"` (default) or raw audio `(samples,)` when `model_input="audio"` (e.g. NeMo).
 
 ## Jetson Orin Nano: Performance and Pitfalls
 
@@ -58,8 +58,26 @@ pipeline.run()
 | **Blocking mic** | `record_stream()` blocks on the next chunk. Run the whole pipeline on one thread, or run audio in a separate thread and feed chunks via a queue (then the loop pulls from the queue). |
 | **Real-time** | To keep up with 250 ms updates, ensure: mel + model + decode + stabilizer &lt; 250 ms. On Jetson, model (ONNX/TensorRT, FP16) is usually the only heavy part. |
 
+## NeMo Models
+
+NeMo ASR models expect raw audio (they do their own mel preprocessing). Use `model_input="audio"` and the `load_nemo_model()` helper:
+
+```python
+from voice_recognition.models import load_nemo_model
+
+model_forward, vocab, blank_index = load_nemo_model("path/to/model.nemo")
+pipeline = StreamingCaptionPipeline(
+    ...,
+    model_forward=model_forward,
+    model_input="audio",
+    decoder=CTCPrefixBeamSearch(vocab, blank_index=blank_index, beam_size=8),
+)
+```
+
 ## Run Tests
 
 ```bash
 PYTHONPATH=src python tests/test_streaming_loop.py
 ```
+
+Run pipeline with NeMo: `python pipeline_test.py` (or `--file test.wav` for WAV input).
