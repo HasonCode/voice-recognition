@@ -16,6 +16,8 @@ dependencies = [
     "nemo>=7.3.7,<8.0.0",
     "nemo-toolkit (>=2.6.2,<3.0.0)",
     "llama-cpp-python (>=0.3.16,<0.4.0)",
+    "edge-tts (>=7.2.7,<8.0.0)",
+    "pyttsx3 (>=2.99,<3.0)",
 ]
 
 [project.optional-dependencies]
