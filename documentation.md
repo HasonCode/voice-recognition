@@ -204,6 +204,108 @@ for chunk in collector.record_stream(chunk_duration_sec=0.1):
 
 ---
 
+## Llama 3.2 3B Instruct (transcript processing)
+
+To feed live or saved transcripts into **Llama 3.2 3B Instruct** (summarization, Q&A, etc.):
+
+### 1. Access the model
+
+- The model is **gated** on Hugging Face. You must:
+  - Create a Hugging Face account and accept [Meta’s Llama 3.2 Community License](https://huggingface.co/meta-llama/Llama-3.2-3B-Instruct).
+  - Log in: `pip install huggingface_hub` then `huggingface-cli login` (use a token from [HF Settings → Access Tokens](https://huggingface.co/settings/tokens)).
+
+### 2. Install dependencies
+
+From the project root:
+
+```bash
+pip install transformers accelerate
+# Optional, for 4-bit to reduce VRAM (~2–3 GB):
+pip install bitsandbytes
+```
+
+Or add to `pyproject.toml` under `[project.optional-dependencies]`:
+
+```toml
+llama = [
+    "transformers>=4.45.0",
+    "accelerate>=0.33.0",
+    "bitsandbytes>=0.44.0",  # optional, for load_in_4bit
+]
+```
+
+Then: `pip install -e ".[llama]"`.
+
+### 3. Run the example script
+
+Use the provided script to load the model and run on a transcript (e.g. from a file or passed as text):
+
+```bash
+python llama_transcript_example.py "Your transcript text here"
+# Or with a file:
+python llama_transcript_example.py --file transcription.txt
+```
+
+See `llama_transcript_example.py` for the exact load/generate code and how to plug in your own transcript source.
+
+---
+
+## Llama on the edge
+
+You can run Llama (including 3.2 3B Instruct) **on-device** (Jetson Orin Nano, Raspberry Pi, other ARM/x86 edge devices) without a GPU or with limited VRAM by using **llama.cpp** with **GGUF** models. This fits a pipeline where transcript is produced on the same device and you want LLM processing locally.
+
+### Option 1: llama.cpp + GGUF (recommended for edge)
+
+- **What it is:** C++ inference engine, CPU-first (ARM/NEON supported), with optional CUDA on Jetson. Uses quantized GGUF models (Q4_K_M ~2 GB for 3B).
+- **Where it runs:** Jetson Orin Nano, Jetson Nano, Raspberry Pi 5 (4–8 GB RAM), other ARM or x86 boards.
+- **Steps:**
+  1. **Get a GGUF model** (no Hugging Face gating for many community quantized builds):
+     - [bartowski/Llama-3.2-3B-Instruct-GGUF](https://huggingface.co/bartowski/Llama-3.2-3B-Instruct-GGUF) — e.g. `Llama-3.2-3B-Instruct-Q4_K_M.gguf` (~2 GB).
+     - Or search Hugging Face for `Llama-3.2-3B-Instruct-GGUF`.
+  2. **Install llama.cpp** (build from source on ARM/Jetson for your platform):
+     - Clone [ggerganov/llama.cpp](https://github.com/ggerganov/llama.cpp), then `cmake -B build && cmake --build build`. On Jetson you can enable CUDA in the build for GPU acceleration.
+  3. **Run the server or CLI:**
+     - Server: `./build/bin/server -m path/to/Llama-3.2-3B-Instruct-Q4_K_M.gguf -c 2048 --port 8080`
+     - Then send transcript to `http://localhost:8080/completion` (or use the OpenAI-compatible endpoint if available).
+
+### Option 2: llama-cpp-python (Python API, same GGUF)
+
+- **What it is:** Python bindings for llama.cpp. Same GGUF files; you load the model in Python and call `generate()` or chat APIs so you can feed transcript from your voice pipeline in process.
+- **Install:**
+  ```bash
+  pip install llama-cpp-python
+  # On Jetson with CUDA (optional):
+  CMAKE_ARGS="-DGGML_CUDA=on" pip install llama-cpp-python --force-reinstall --no-cache-dir
+  ```
+- **Use:** Load the `.gguf` file with `Llama(model_path="...")` and run prompts (see `llama_transcript_edge_example.py`).
+
+### Option 3: TensorRT-LLM (Jetson AGX Orin only)
+
+- **What it is:** NVIDIA’s optimized LLM runtime. Best throughput on Jetson when supported.
+- **Caveat:** TensorRT-LLM is validated for **Jetson AGX Orin** (e.g. JetPack 6.1, L4T r36.4). **Jetson Orin Nano** is not officially supported (no planned support in current issues). Prefer llama.cpp/GGUF for Orin Nano.
+
+### Option 4: Ollama (easiest if your device is supported)
+
+- **What it is:** One-command local LLM runner; it downloads and runs models (many in GGUF under the hood).
+- **Edge:** Supports ARM64 (e.g. Raspberry Pi, some Jetson setups). Check [ollama.com](https://ollama.com) for your OS/board.
+  ```bash
+  ollama run llama3.2:3b-instruct
+  ```
+- Then call the local API with your transcript (e.g. `POST /api/generate`).
+
+### Summary
+
+| Target device        | Suggested stack              |
+|----------------------|-----------------------------|
+| Jetson Orin Nano     | llama.cpp + GGUF (CPU or CUDA build), or llama-cpp-python |
+| Jetson AGX Orin      | TensorRT-LLM or llama.cpp   |
+| Raspberry Pi 5 (4–8 GB) | llama.cpp + Q4_K_M GGUF, or Ollama |
+| Any edge (low RAM)   | 1B GGUF or smaller quantizations (Q3, IQ3) |
+
+Use `llama_transcript_edge_example.py` to feed transcript into a local GGUF model via llama-cpp-python from this repo.
+
+---
+
 ## Next Steps
 
 - Dataset collection pipeline (batch recording, labeling)

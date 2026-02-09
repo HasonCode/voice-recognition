@@ -9,3 +9,4 @@ venv/
 .pytest_cache
 transcript.txt
 transcription.txt
+llama_3.2_3B.gguf
