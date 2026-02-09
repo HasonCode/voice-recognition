@@ -92,7 +92,6 @@ def main(use_nemo=True, wav_path=None):
         if not wav_path.exists():
             print(f"File not found: {wav_path}")
             sys.exit(1)
-        chunks = load_wav_chunks(wav_path, chunk_samples, config.sample_rate)
         audio_source = "file"
     else:
         chunks = [
@@ -103,7 +102,7 @@ def main(use_nemo=True, wav_path=None):
 
     print(f"Running pipeline with {model_name} model ({audio_source} audio)...\n")
     if wav_path:
-        pipeline.run(audio_iterator=iter(chunks))
+        pipeline.run_from_file(str(wav_path))
     else:
         pipeline.run_for_n_updates(5, iter(chunks))
     print("\nDone.")

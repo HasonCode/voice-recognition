@@ -186,3 +186,45 @@ class StreamingCaptionPipeline:
                 displays.append(display_text)
                 self.on_display(display_text)
         return displays
+
+    def run_from_file(self, wav_path: str, device: Optional[int] = None) -> None:
+        """Process an entire WAV file: slide context window over full audio, no discard.
+
+        Unlike run(audio_iterator=...), this does NOT use a ring buffer that
+        overwrites. It loads the whole file and slides a context_sec window
+        by update_interval_sec steps from start to end, so every part of
+        the file is processed.
+
+        Args:
+            wav_path: Path to WAV file (16 kHz mono).
+            device: Unused; kept for API compatibility.
+        """
+        import scipy.io.wavfile as wavfile
+
+        path = __import__("pathlib").Path(wav_path)
+        if not path.exists():
+            raise FileNotFoundError(f"WAV not found: {wav_path}")
+
+        sr, audio = wavfile.read(str(path))
+        if sr != self.streaming_config.sample_rate:
+            raise ValueError(f"Expected {self.streaming_config.sample_rate} Hz, got {sr} Hz. Resample the file.")
+        if audio.dtype == np.int16:
+            audio = audio.astype(np.float32) / 32768.0
+        if audio.ndim > 1:
+            audio = audio.mean(axis=1)
+
+        context_samples = self.streaming_config.context_samples
+        hop_samples = self.streaming_config.chunk_samples
+        n_samples = len(audio)
+        self._stopped = False
+
+        for start in range(0, max(1, n_samples - context_samples + 1), hop_samples):
+            if self._stopped:
+                break
+            end = min(start + context_samples, n_samples)
+            window = audio[start:end].astype(np.float32)
+            if len(window) < context_samples:
+                window = np.pad(window, (0, context_samples - len(window)), mode="constant", constant_values=0)
+            display_text = self._process_context(window)
+            if display_text is not None:
+                self.on_display(display_text)
