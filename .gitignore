@@ -17,3 +17,5 @@ hason_voice_200e_22800s.pth
 hason_voice.index
 stt_en_conformer_ctc_large.nemo
 ctc_small.nemo
+key.txt
+steel_wait.wav

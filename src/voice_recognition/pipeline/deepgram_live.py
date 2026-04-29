@@ -80,14 +80,16 @@ class DeepgramStreamingPipeline:
         listen_thread: Optional[threading.Thread] = None
         last_keepalive = 0.0
 
+        # Query params must use Deepgram's string booleans ("true"/"false"), not Python bool,
+        # or the server returns HTTP 400 on the WebSocket handshake.
         with client.listen.v1.connect(
             model=self.model,
             encoding="linear16",
             sample_rate=self.audio_config.sample_rate,
             channels=self.audio_config.channels,
-            interim_results=True,
-            smart_format=True,
-            language="en",
+            interim_results="true",
+            smart_format="true",
+            language="en-US",
         ) as connection:
 
             def on_message(message: object) -> None:
