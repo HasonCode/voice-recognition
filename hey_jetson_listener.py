@@ -28,7 +28,6 @@ import threading
 import time
 import math
 import subprocess
-from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -467,9 +466,6 @@ def main(
                 continue
             if sig == answered or answered in sig or sig in answered:
                 return True
-            # Deepgram may flip a short word in stale final captions (cat/can, run/around).
-            if SequenceMatcher(None, sig, answered).ratio() >= 0.86:
-                return True
         return False
 
     def normalize_stream_text(text: str) -> str:
@@ -660,7 +656,24 @@ def main(
                 if wake_module._matches_trigger(current_question, similarity_threshold):
                     current_question = ""
                 caption_question = wake_module._text_after_trigger(s_norm, similarity_threshold) or s_norm
-                merged_question = merge_display_into_transcript(current_question, caption_question)
+                short_question_prefixes = {
+                    "what is",
+                    "what are",
+                    "who is",
+                    "who are",
+                    "where is",
+                    "where are",
+                    "when is",
+                    "why is",
+                    "how is",
+                    "how are",
+                    "how many",
+                    "how much",
+                }
+                if current_question in short_question_prefixes and not caption_question.startswith(current_question):
+                    merged_question = f"{current_question} {caption_question}"
+                else:
+                    merged_question = merge_display_into_transcript(current_question, caption_question)
                 accumulated_transcript[0] = ""
                 last_display[0] = None
                 identical_count[0] = 0
@@ -710,7 +723,13 @@ def main(
         print("display:", repr(s_norm))
         if not merged:
             return
+        was_capturing = capturing
         listener.push_transcript(merged)
+        if not was_capturing and listener.is_capturing():
+            from voice_recognition.wakeword import hey_jetson as wake_module
+
+            tail = wake_module._text_after_trigger(merged, similarity_threshold)
+            accumulated_transcript[0] = tail.strip() if tail.strip() else ""
 
     if backend == "deepgram":
         pipeline = DeepgramStreamingPipeline(
