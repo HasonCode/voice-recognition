@@ -58,6 +58,9 @@ class StreamingCaptionPipeline:
           on_display=print,
       )
       pipeline.run()  # blocks; use stop() from another thread or pass audio_iterator with sentinel
+
+    Optional ``asr_enabled`` callable: return False to drop mic audio without decoding
+    (e.g. while TTS plays) so the model does not transcribe playback.
     """
 
     def __init__(
@@ -72,6 +75,7 @@ class StreamingCaptionPipeline:
         stabilizer: Optional[object] = None,
         on_display: Optional[DisplayCallback] = None,
         audio_collector: Optional[AudioCollector] = None,
+        asr_enabled: Optional[Callable[[], bool]] = None,
     ):
         self.streaming_config = config or StreamingConfig()
         self.audio_config = audio_config or AudioConfig()
@@ -83,6 +87,7 @@ class StreamingCaptionPipeline:
         self.stabilizer = stabilizer
         self.on_display = on_display or (lambda s: None)
         self.audio_collector = audio_collector or AudioCollector(self.audio_config)
+        self._asr_enabled = asr_enabled
 
         self._audio_ring: Optional[RingBuffer] = None
         self._stopped = False
@@ -90,6 +95,38 @@ class StreamingCaptionPipeline:
     def stop(self) -> None:
         """Signal the run loop to exit (checked each iteration)."""
         self._stopped = True
+
+    def _asr_allowed(self) -> bool:
+        """When False, mic chunks are consumed but not decoded (e.g. during TTS playback)."""
+        return self._asr_enabled is None or self._asr_enabled()
+
+    def _step_live_chunk(
+        self, ring: RingBuffer, chunk: np.ndarray, prev_decoding: bool
+    ) -> tuple[bool, Optional[str]]:
+        """Apply one audio chunk.
+
+        Returns:
+            (still_decoding, display_text): ``still_decoding`` is False while ASR is gated off.
+            ``display_text`` is the caption when produced, else None.
+        """
+        if not self._asr_allowed():
+            if prev_decoding:
+                ring.clear()
+                if self.stabilizer is not None:
+                    self.stabilizer.reset()
+            return False, None
+        if not prev_decoding:
+            ring.clear()
+            if self.stabilizer is not None:
+                self.stabilizer.reset()
+        chunk = np.asarray(chunk, dtype=np.float32)
+        if chunk.size == 0:
+            return True, None
+        ring.push(chunk)
+        display_text = self._process_context(ring.get_all())
+        if display_text is not None:
+            self.on_display(display_text)
+        return True, display_text
 
     def _ensure_audio_ring(self) -> RingBuffer:
         if self._audio_ring is None:
@@ -140,20 +177,14 @@ class StreamingCaptionPipeline:
         """
         self._stopped = False
         ring = self._ensure_audio_ring()
-        chunk_samples = self.streaming_config.chunk_samples
         interval_sec = self.streaming_config.update_interval_sec
 
+        prev_decoding = True
         if audio_iterator is not None:
             for chunk in audio_iterator:
                 if self._stopped:
                     break
-                chunk = np.asarray(chunk, dtype=np.float32)
-                if chunk.size == 0:
-                    continue
-                ring.push(chunk)
-                display_text = self._process_context(ring.get_all())
-                if display_text is not None:
-                    self.on_display(display_text)
+                prev_decoding, _ = self._step_live_chunk(ring, chunk, prev_decoding)
         else:
             for chunk in self.audio_collector.record_stream(
                 chunk_duration_sec=interval_sec,
@@ -161,10 +192,7 @@ class StreamingCaptionPipeline:
             ):
                 if self._stopped:
                     break
-                ring.push(chunk)
-                display_text = self._process_context(ring.get_all())
-                if display_text is not None:
-                    self.on_display(display_text)
+                prev_decoding, _ = self._step_live_chunk(ring, chunk, prev_decoding)
 
     def run_for_n_updates(
         self,
@@ -174,17 +202,16 @@ class StreamingCaptionPipeline:
         """Run for exactly n context updates; used for tests. Returns list of display strings."""
         self._stopped = False
         ring = self._ensure_audio_ring()
-        chunk_samples = self.streaming_config.chunk_samples
         displays: list[str] = []
+        prev_decoding = True
         for chunk in audio_iterator:
             if len(displays) >= n:
                 break
-            chunk = np.asarray(chunk, dtype=np.float32)
-            ring.push(chunk)
-            display_text = self._process_context(ring.get_all())
+            prev_decoding, display_text = self._step_live_chunk(ring, chunk, prev_decoding)
             if display_text is not None:
                 displays.append(display_text)
-                self.on_display(display_text)
+            if len(displays) >= n:
+                break
         return displays
 
     def run_from_file(

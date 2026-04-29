@@ -19,4 +19,6 @@ See [documentation.md](documentation.md) for encoding standards, API details, an
 ```bash
 pip install -e .
 voice-record --duration 5 -o sample.wav
+voice-tts-test --text "What is your request?"
+voice-tts-test --text "Saving this test" --output tts_test.wav
 ```

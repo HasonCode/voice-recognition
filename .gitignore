@@ -10,3 +10,10 @@ venv/
 transcript.txt
 transcription.txt
 llama_3.2_3B.gguf
+Llama-3.2-3B-Instruct-Q6_K.gguf
+4qllamasmall.gguf
+ctc_small.nemo
+hason_voice_200e_22800s.pth
+hason_voice.index
+stt_en_conformer_ctc_large.nemo
+ctc_small.nemo

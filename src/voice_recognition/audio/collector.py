@@ -54,12 +54,24 @@ class AudioCollector:
         self,
         chunk_duration_sec: float = 0.1,
         device: Optional[int] = None,
+        *,
+        coalesce_queued_chunks: bool = True,
+        stream_latency: str | float = "low",
     ) -> Iterator[np.ndarray]:
         """Stream audio chunks continuously.
 
         Args:
             chunk_duration_sec: Duration of each yielded chunk in seconds.
             device: Input device index (None = default).
+            coalesce_queued_chunks: If True (default), drain all samples currently
+                waiting in the queue and yield them as one array. When inference
+                is slower than realtime, this prevents an unbounded backlog so
+                transcription tracks live speech instead of lagging by many
+                seconds. The downstream ring buffer already keeps only the tail
+                window of audio.
+            stream_latency: PortAudio latency hint, e.g. ``\"low\"`` (default)
+                or seconds as float. Lower values reduce capture delay; too low
+                may cause dropouts on some hardware.
 
         Yields:
             Mono float32 chunks, shape (n_samples,).
@@ -80,9 +92,23 @@ class AudioCollector:
             blocksize=chunk_samples,
             device=device,
             callback=callback,
+            latency=stream_latency,
         ):
             while True:
-                yield q.get()
+                first = q.get()
+                if not coalesce_queued_chunks:
+                    yield first
+                    continue
+                pending: list[np.ndarray] = [first]
+                while True:
+                    try:
+                        pending.append(q.get_nowait())
+                    except queue.Empty:
+                        break
+                if len(pending) == 1:
+                    yield pending[0]
+                else:
+                    yield np.concatenate(pending)
 
     def record_to_file(
         self,

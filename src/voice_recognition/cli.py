@@ -9,7 +9,12 @@ from voice_recognition.audio.config import AudioConfig
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Record audio for voice recognition (mono 16 kHz)")
+    parser = argparse.ArgumentParser(
+        description="Record audio for voice recognition (mono 16 kHz)",
+        epilog=(
+            "Wake-phrase tuning uses hey_jetson_listener.py (--similarity / -s), not this command."
+        ),
+    )
     parser.add_argument(
         "--duration",
         type=float,

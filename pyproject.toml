@@ -25,9 +25,13 @@ ml = [
     "torch>=2.10.0,<3.0.0",
     "torchvision>=0.25.0,<0.26.0",
 ]
+deepgram = [
+    "deepgram-sdk>=3.0.0",
+]
 
 [project.scripts]
 voice-record = "voice_recognition.cli:main"
+voice-tts-test = "voice_recognition.wakeword.tts_cli:main"
 
 [[tool.poetry.packages]]
 include = "voice_recognition"
